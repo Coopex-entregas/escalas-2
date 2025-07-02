@@ -4,26 +4,29 @@
     <meta charset="UTF-8">
     <title>Dashboard do Administrador</title>
     <style>
-        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f4; }
-        .container { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .card { border: 1px solid #ccc; padding: 1.5em; margin-bottom: 1.5em; border-radius: 5px; background: #f9f9f9; }
-        h1, h2, h3 { color: #333; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 2em; background-color: #f8f9fa; color: #212529; }
+        .container { max-width: 900px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .card { border: 1px solid #dee2e6; padding: 1.5em; margin-bottom: 1.5em; border-radius: 8px; background: #fff; }
+        h1, h2, h3 { color: #343a40; }
+        h1 { text-align: center; margin-bottom: 1em; }
         a { color: #007bff; text-decoration: none; }
         a:hover { text-decoration: underline; }
         table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #f2f2f2; }
-        .flash { padding: 1em; margin-bottom: 1em; border-radius: 5px; text-align: center; }
-        .flash.success { background-color: #d4edda; color: #155724; }
-        .flash.danger { background-color: #f8d7da; color: #721c24; }
-        .flash.warning { background-color: #fff3cd; color: #856404; }
-        .flash.info { background-color: #d1ecf1; color: #0c5460; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e9ecef; }
+        th { background-color: #f8f9fa; }
+        .flash { padding: 1em; margin-bottom: 1em; border-radius: 5px; text-align: center; font-weight: 500; }
+        .flash.success { background-color: #d1e7dd; color: #0f5132; }
+        .flash.danger { background-color: #f8d7da; color: #842029; }
+        .flash.warning { background-color: #fff3cd; color: #664d03; }
+        .flash.info { background-color: #cff4fc; color: #055160; }
         input[type="text"], input[type="email"], input[type="password"], input[type="file"], input[type="submit"] {
-            width: 95%; padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc;
+            width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #ced4da; font-size: 16px;
         }
-        input[type="submit"] { background-color: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; }
+        input[type="submit"] { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         input[type="submit"]:hover { background-color: #0056b3; }
         .logout-link { text-align: right; margin-bottom: 20px; }
+        .remove-btn { background-color: #dc3545 !important; width: auto; padding: 6px 12px; font-size: 14px; }
+        .remove-btn:hover { background-color: #c82333 !important; }
     </style>
 </head>
 <body>
@@ -52,7 +55,8 @@
 
         <div class="card">
             <h2>Escala Atual Carregada</h2>
-            {% if escala %}
+            <!-- CORREÇÃO APLICADA AQUI -->
+            {% if escala and escala|length > 0 %}
                 <table>
                     <thead>
                         <tr>
@@ -68,7 +72,7 @@
                             <td>{{ item.data }}</td>
                             <td>{{ item.horario }}</td>
                             <td>{{ item.contrato }}</td>
-                            <td>{{ item.nome }}</td>
+                            <td>{{ item.nome_cooperado }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -104,13 +108,13 @@
                         <td>{{ user.email }}</td>
                         <td>
                             <form action="{{ url_for('remove_user', user_id=user.id) }}" method="post" onsubmit="return confirm('Tem certeza que deseja remover este usuário?');">
-                                <input type="submit" value="Remover" style="background-color: #dc3545; width: auto; padding: 5px 10px; font-size: 14px;">
+                                <input type="submit" value="Remover" class="remove-btn">
                             </form>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="3">Nenhum cooperado cadastrado.</td>
+                        <td colspan="3" style="text-align: center;">Nenhum cooperado cadastrado.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
