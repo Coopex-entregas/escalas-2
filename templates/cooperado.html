@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head><title>Escala</title></head>
+<body>
+  <h2>Olá {{ nome }}</h2>
+  <h3>Sua Escala:</h3>
+  <table border="1">
+    <tr><th>Data</th><th>Horário</th><th>Contrato</th><th>Nome</th></tr>
+    {% for item in escala %}
+      <tr>
+        <td>{{ item.data }}</td>
+        <td>{{ item.horario }}</td>
+        <td>{{ item.contrato }}</td>
+        <td>{{ item.nome }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+  <br><a href="/logout">Sair</a>
+</body>
+</html>

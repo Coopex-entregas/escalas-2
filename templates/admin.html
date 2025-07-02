@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head><title>Admin</title></head>
+<body>
+  <h2>Bem-vindo, Administrador</h2>
+  <h3>Enviar nova escala</h3>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="file"><button type="submit">Enviar</button>
+  </form>
+  <h3>Cadastrar novo cooperado</h3>
+  <form action="/add_user" method="post">
+    <input name="nome" placeholder="Nome completo"><br>
+    <input name="email" type="email" placeholder="Email"><br>
+    <input name="senha" type="password" placeholder="Senha"><br>
+    <button type="submit">Cadastrar</button>
+  </form>
+  <h3>Cooperados</h3>
+  <ul>
+  {% for email, data in cooperados.items() %}
+    {% if not data.admin %}
+      <li>{{ data.nome }} ({{ email }}) - <a href="/remove_user/{{ email }}">Remover</a></li>
+    {% endif %}
+  {% endfor %}
+  </ul>
+  <br><a href="/logout">Sair</a>
+</body>
+</html>
