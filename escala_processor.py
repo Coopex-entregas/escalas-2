@@ -1,28 +1,20 @@
 import pandas as pd
 
 def process_escala(file_path):
-    """
-    Processa um arquivo Excel de escala e retorna uma lista de dicionários.
-    Assume que os dados relevantes estão nas colunas A, D, F, G.
-    """
     try:
-        # Tenta ler a planilha, especificando os nomes das colunas para evitar problemas
-        # com cabeçalhos ausentes ou em linhas erradas.
-        df = pd.read_excel(file_path, header=None, names=['data', 'colB', 'colC', 'horario', 'colE', 'contrato', 'nome'])
-        
+        df = pd.read_excel(file_path, engine='openpyxl')
         escala = []
-        for index, row in df.iterrows():
-            # Pula linhas onde o nome do cooperado está vazio (NaN)
-            if pd.isna(row['nome']):
-                continue
-
-            escala.append({
-                'data': row['data'],
-                'horario': row['horario'],
-                'contrato': row['contrato'],
-                'nome': row['nome']
-            })
+        # Itera sobre as linhas do DataFrame para extrair os dados
+        for _, row in df.iterrows():
+            # Adiciona verificação para garantir que a coluna 6 (nome) não está vazia
+            if pd.notna(row[6]) and str(row[6]).strip() != "":
+                escala.append({
+                    'data': row[0],
+                    'horario': row[3],
+                    'contrato': row[5],
+                    'nome': str(row[6]).strip()
+                })
         return escala
     except Exception as e:
-        print(f"Ocorreu um erro ao ler o arquivo Excel: {e}")
-        return [] # Retorna uma lista vazia em caso de erro
+        print(f"Erro ao processar o arquivo Excel: {e}")
+        return []
