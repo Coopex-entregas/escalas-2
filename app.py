@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, session, url_for, f
 from werkzeug.utils import secure_filename
 from escala_processor import process_escala
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.sql import func
+from flask_migrate import Migrate # Nova importação
 import bcrypt
 
 # --- Configuração da Aplicação ---
@@ -12,19 +12,17 @@ app.secret_key = 'coopex_secret_key_muito_segura'
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- CONFIGURAÇÃO DO BANCO DE DADOS (CORRIGIDA) ---
-# Pega a URL do banco de dados da variável de ambiente que o Render cria
+# --- CONFIGURAÇÃO DO BANCO DE DADOS ---
 db_uri = os.environ.get('DATABASE_URL')
-# O Render usa 'postgres://' mas SQLAlchemy espera 'postgresql://'
 if db_uri and db_uri.startswith("postgres://"):
     db_uri = db_uri.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Inicializa o banco de dados AQUI, depois de configurar o app
 db = SQLAlchemy(app)
+migrate = Migrate(app, db) # Inicializa o Flask-Migrate
 
-# --- MODELO DO BANCO DE DADOS (TABELA DE USUÁRIOS) ---
+# --- MODELO DO BANCO DE DADOS ---
 class Cooperado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
@@ -43,6 +41,8 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'xlsx'}
 
 # --- ROTAS DA APLICAÇÃO ---
+# (Todas as suas rotas @app.route(...) permanecem exatamente as mesmas de antes)
+# ... (login, dashboard, logout, upload, add_user, remove_user) ...
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -69,7 +69,6 @@ def dashboard():
     
     user = Cooperado.query.filter_by(email=session['email']).first()
     if not user:
-        # Se o usuário da sessão não for encontrado no DB, limpa a sessão
         session.clear()
         flash('Sua sessão expirou. Por favor, faça login novamente.', 'warning')
         return redirect(url_for('login'))
@@ -129,7 +128,6 @@ def add_user():
     flash(f'Usuário {nome} adicionado com sucesso!', 'success')
     return redirect(url_for('dashboard'))
 
-# Rota de remoção modificada para ser mais segura
 @app.route('/remove_user/<int:user_id>', methods=['POST'])
 def remove_user(user_id):
     if not session.get('admin'):
@@ -143,20 +141,7 @@ def remove_user(user_id):
         
     return redirect(url_for('dashboard'))
 
-# --- COMANDO PARA INICIAR O BANCO DE DADOS ---
-with app.app_context():
-    db.create_all()
-    # Cria o usuário admin se ele não existir
-    if not Cooperado.query.filter_by(email='coopexentregas.rn@gmail.com').first():
-        admin_senha_hash = bcrypt.hashpw('05062721'.encode('utf-8'), bcrypt.gensalt())
-        admin_user = Cooperado(
-            nome='Administrador',
-            email='coopexentregas.rn@gmail.com',
-            senha_hash=admin_senha_hash,
-            admin=True
-        )
-        db.session.add(admin_user)
-        db.session.commit()
+# O bloco que criava o admin foi removido daqui
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
