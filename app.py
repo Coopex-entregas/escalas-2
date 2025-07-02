@@ -1,3 +1,9 @@
+import os
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+
 # --- CONFIGURAÇÃO DO BANCO DE DADOS (VERSÃO CORRIGIDA E SIMPLIFICADA) ---
 database_url = os.environ.get('DATABASE_URL')
 if database_url and database_url.startswith("postgres://"):
