@@ -100,4 +100,5 @@ def add_user():
 def remove_user(email):
     if not session.get('admin'):
         return redirect(url_for('login'))
-    if email in cooperados and not cooperados[ema
+    if email in cooperados and not cooperados[email].get('admin'):
+
