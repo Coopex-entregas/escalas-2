@@ -1,27 +1,58 @@
 <!DOCTYPE html>
-<html>
-<head><title>Admin</title></head>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard do Administrador</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .container { max-width: 800px; margin: auto; }
+        .upload-form, .user-form, .user-list { border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; border-radius: 5px; }
+        a { color: #d9534f; text-decoration: none; }
+    </style>
+</head>
 <body>
-  <h2>Bem-vindo, Administrador</h2>
-  <h3>Enviar nova escala</h3>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file"><button type="submit">Enviar</button>
-  </form>
-  <h3>Cadastrar novo cooperado</h3>
-  <form action="/add_user" method="post">
-    <input name="nome" placeholder="Nome completo"><br>
-    <input name="email" type="email" placeholder="Email"><br>
-    <input name="senha" type="password" placeholder="Senha"><br>
-    <button type="submit">Cadastrar</button>
-  </form>
-  <h3>Cooperados</h3>
-  <ul>
-  {% for email, data in cooperados.items() %}
-    {% if not data.admin %}
-      <li>{{ data.nome }} ({{ email }}) - <a href="/remove_user/{{ email }}">Remover</a></li>
-    {% endif %}
-  {% endfor %}
-  </ul>
-  <br><a href="/logout">Sair</a>
+    <div class="container">
+        <h1>Painel do Administrador</h1>
+        <p><a href="{{ url_for('logout') }}">Sair</a></p>
+
+        <div class="upload-form">
+            <h2>Upload de Escala</h2>
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".xlsx">
+                <input type="submit" value="Enviar Escala">
+            </form>
+        </div>
+
+        <div class="user-form">
+            <h2>Adicionar Novo Cooperado</h2>
+            <form action="/add_user" method="post">
+                <input type="text" name="nome" placeholder="Nome Completo" required>
+                <input type="email" name="email" placeholder="E-mail" required>
+                <input type="password" name="senha" placeholder="Senha" required>
+                <input type="submit" value="Adicionar">
+            </form>
+        </div>
+
+        <div class="user-list">
+            <h2>Lista de Cooperados</h2>
+            <table border="1" width="100%">
+                <tr>
+                    <th>Nome</th>
+                    <th>E-mail</th>
+                    <th>Ação</th>
+                </tr>
+                {% for email, data in cooperados.items() %}
+                <tr>
+                    <td>{{ data.nome }}</td>
+                    <td>{{ email }}</td>
+                    <td>
+                        <!-- CORREÇÃO CRÍTICA AQUI -->
+                        <a href="{{ url_for('remove_user', email=email) }}" onclick="return confirm('Tem certeza que deseja remover este usuário?');">Remover</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
 </body>
 </html>
