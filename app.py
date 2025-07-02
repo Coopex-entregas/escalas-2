@@ -15,7 +15,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'uma_chave_secreta_padrao_para_tes
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- CONFIGURAÇÃO DO BANCO DE DADOS (VERSÃO CORRIGIDA E SIMPLIFICADA) ---
+# --- CONFIGURAÇÃO DO BANCO DE DADOS ---
 database_url = os.environ.get('DATABASE_URL')
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -25,39 +25,36 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- MODELO DO BANCO DE DADOS ---
+# --- MODELOS DO BANCO DE DADOS ---
 class Cooperado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    # Armazenamos o hash como string, mas precisamos codificar/decodificar na lógica
     senha_hash = db.Column(db.String(128), nullable=False)
     admin = db.Column(db.Boolean, default=False, nullable=False)
 
-# --- DADOS EM MEMÓRIA ---
-escala_data = []
+# NOVA TABELA PARA A ESCALA
+class Escala(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    data = db.Column(db.String(50))
+    horario = db.Column(db.String(50))
+    contrato = db.Column(db.String(100))
+    nome_cooperado = db.Column(db.String(100))
+
 
 # --- Funções Auxiliares ---
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'xlsx'}
 
 # --- Bloco para criar o banco de dados e o admin ---
-# Isso será executado uma vez quando a aplicação iniciar
 with app.app_context():
     try:
         db.create_all()
         logging.info("Tabelas do banco de dados verificadas/criadas.")
-        # Cria o usuário admin se ele não existir
         if not Cooperado.query.filter_by(email='coopexentregas.rn@gmail.com').first():
             logging.info("Usuário admin não encontrado, criando...")
-            # Gera o hash e decodifica para guardar como string no DB
             admin_senha_hash = bcrypt.hashpw('05062721'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            admin_user = Cooperado(
-                nome='Administrador',
-                email='coopexentregas.rn@gmail.com',
-                senha_hash=admin_senha_hash,
-                admin=True
-            )
+            admin_user = Cooperado(nome='Administrador', email='coopexentregas.rn@gmail.com', senha_hash=admin_senha_hash, admin=True)
             db.session.add(admin_user)
             db.session.commit()
             logging.info("Usuário admin criado com sucesso.")
@@ -74,9 +71,6 @@ def login():
         email = request.form.get('email')
         senha = request.form.get('senha')
         user = Cooperado.query.filter_by(email=email).first()
-        
-        # **AQUI ESTÁ A CORREÇÃO**
-        # Codificamos a senha digitada e a senha do banco de dados para bytes antes de comparar
         if user and bcrypt.checkpw(senha.encode('utf-8'), user.senha_hash.encode('utf-8')):
             session['email'] = user.email
             session['admin'] = user.admin
@@ -96,11 +90,14 @@ def dashboard():
         session.clear()
         return redirect(url_for('login'))
 
+    # Carrega a escala do banco de dados
+    escala_atual = Escala.query.all()
+
     if user.admin:
         cooperados_list = Cooperado.query.filter_by(admin=False).order_by(Cooperado.nome).all()
-        return render_template('admin.html', cooperados=cooperados_list, escala=escala_data)
+        return render_template('admin.html', cooperados=cooperados_list, escala=escala_atual)
     else:
-        escala_pessoal = [linha for linha in escala_data if user.nome.lower() in str(linha.get('nome', '')).lower()]
+        escala_pessoal = [item for item in escala_atual if user.nome.lower() in item.nome_cooperado.lower()]
         return render_template('cooperado.html', nome=user.nome, escala=escala_pessoal)
 
 @app.route('/logout')
@@ -116,22 +113,41 @@ def upload():
     if 'file' not in request.files or request.files['file'].filename == '':
         flash('Nenhum arquivo selecionado.', 'warning')
         return redirect(url_for('dashboard'))
+    
     file = request.files['file']
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         
-        # Garante que a pasta de uploads exista
         if not os.path.exists(app.config['UPLOAD_FOLDER']):
             os.makedirs(app.config['UPLOAD_FOLDER'])
             
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(path)
-        global escala_data
+        
         try:
-            escala_data = process_escala(path)
-            flash('Escala processada com sucesso!', 'success')
+            # Processa o arquivo Excel
+            escala_processada = process_escala(path)
+            
+            # Apaga a escala antiga do banco de dados
+            Escala.query.delete()
+            
+            # Adiciona a nova escala ao banco de dados
+            for item in escala_processada:
+                novo_item_escala = Escala(
+                    data=str(item.get('data', '')),
+                    horario=str(item.get('horario', '')),
+                    contrato=str(item.get('contrato', '')),
+                    nome_cooperado=str(item.get('nome', ''))
+                )
+                db.session.add(novo_item_escala)
+            
+            db.session.commit()
+            flash('Escala processada e salva no banco de dados com sucesso!', 'success')
+
         except Exception as e:
+            db.session.rollback() # Desfaz as alterações em caso de erro
             flash(f'Erro ao processar o arquivo: {e}', 'danger')
+            
     return redirect(url_for('dashboard'))
 
 @app.route('/add_user', methods=['POST'])
@@ -147,7 +163,6 @@ def add_user():
         flash('Este e-mail já está cadastrado.', 'warning')
         return redirect(url_for('dashboard'))
 
-    # Gera o hash e decodifica para guardar como string no DB
     senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     novo_cooperado = Cooperado(nome=nome, email=email, senha_hash=senha_hash, admin=False)
@@ -170,7 +185,6 @@ def remove_user(user_id):
         
     return redirect(url_for('dashboard'))
 
-# A linha abaixo não é usada pelo Gunicorn, mas é útil para testes locais
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
