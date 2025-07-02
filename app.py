@@ -22,6 +22,7 @@ escala_data = []
 
 # --- Funções Auxiliares ---
 def allowed_file(filename):
+    """Verifica se a extensão do arquivo é permitida."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Rotas da Aplicação ---
@@ -96,9 +97,25 @@ def add_user():
         flash('Este e-mail já está cadastrado.', 'warning')
     return redirect(url_for('dashboard'))
 
+# Bloco de código corrigido
 @app.route('/remove_user/<path:email>')
 def remove_user(email):
     if not session.get('admin'):
         return redirect(url_for('login'))
+    
+    # A linha do 'if'
     if email in cooperados and not cooperados[email].get('admin'):
+        # A linha seguinte com 4 espaços de recuo
+        del cooperados[email]
+        # Esta linha também com 4 espaços de recuo
+        flash('Usuário removido com sucesso!', 'success')
+        
+    return redirect(url_for('dashboard'))
+
+# --- Execução da Aplicação (para servidor online) ---
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+
+
 
