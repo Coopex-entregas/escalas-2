@@ -3,24 +3,31 @@ from flask import Flask, render_template, request, redirect, session, url_for, f
 from werkzeug.utils import secure_filename
 from escala_processor import process_escala
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate # Nova importação
 import bcrypt
+import logging
+
+# Configura o logging para ver mensagens no Render
+logging.basicConfig(level=logging.INFO)
 
 # --- Configuração da Aplicação ---
 app = Flask(__name__)
-app.secret_key = 'coopex_secret_key_muito_segura'
+app.secret_key = os.environ.get('SECRET_KEY', 'uma_chave_secreta_padrao_para_testes')
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # --- CONFIGURAÇÃO DO BANCO DE DADOS ---
 db_uri = os.environ.get('DATABASE_URL')
-if db_uri and db_uri.startswith("postgres://"):
-    db_uri = db_uri.replace("postgres://", "postgresql://", 1)
-app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+if db_uri:
+    if db_uri.startswith("postgres://"):
+        db_uri = db_uri.replace("postgres://", "postgresql://", 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+else:
+    logging.error("DATABASE_URL não foi encontrada!")
+    # Configuração para testes locais se a URL não for encontrada
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 
 db = SQLAlchemy(app)
-migrate = Migrate(app, db) # Inicializa o Flask-Migrate
 
 # --- MODELO DO BANCO DE DADOS ---
 class Cooperado(db.Model):
@@ -30,9 +37,6 @@ class Cooperado(db.Model):
     senha_hash = db.Column(db.String(128), nullable=False)
     admin = db.Column(db.Boolean, default=False, nullable=False)
 
-    def __repr__(self):
-        return f'<Cooperado {self.email}>'
-
 # --- DADOS EM MEMÓRIA ---
 escala_data = []
 
@@ -40,10 +44,30 @@ escala_data = []
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'xlsx'}
 
-# --- ROTAS DA APLICAÇÃO ---
-# (Todas as suas rotas @app.route(...) permanecem exatamente as mesmas de antes)
-# ... (login, dashboard, logout, upload, add_user, remove_user) ...
+# --- Bloco para criar o banco de dados e o admin ---
+# Isso será executado uma vez quando a aplicação iniciar
+with app.app_context():
+    try:
+        db.create_all()
+        logging.info("Tabelas do banco de dados verificadas/criadas.")
+        # Cria o usuário admin se ele não existir
+        if not Cooperado.query.filter_by(email='coopexentregas.rn@gmail.com').first():
+            logging.info("Usuário admin não encontrado, criando...")
+            admin_senha_hash = bcrypt.hashpw('05062721'.encode('utf-8'), bcrypt.gensalt())
+            admin_user = Cooperado(
+                nome='Administrador',
+                email='coopexentregas.rn@gmail.com',
+                senha_hash=admin_senha_hash,
+                admin=True
+            )
+            db.session.add(admin_user)
+            db.session.commit()
+            logging.info("Usuário admin criado com sucesso.")
+    except Exception as e:
+        logging.error(f"Erro ao inicializar o banco de dados: {e}")
 
+
+# --- ROTAS DA APLICAÇÃO ---
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if 'email' in session:
@@ -59,7 +83,6 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             flash('E-mail ou senha inválidos.', 'danger')
-            return render_template('login.html')
     return render_template('login.html')
 
 @app.route('/dashboard')
@@ -70,7 +93,6 @@ def dashboard():
     user = Cooperado.query.filter_by(email=session['email']).first()
     if not user:
         session.clear()
-        flash('Sua sessão expirou. Por favor, faça login novamente.', 'warning')
         return redirect(url_for('login'))
 
     if user.admin:
@@ -140,8 +162,6 @@ def remove_user(user_id):
         flash('Usuário removido com sucesso!', 'success')
         
     return redirect(url_for('dashboard'))
-
-# O bloco que criava o admin foi removido daqui
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
