@@ -168,6 +168,28 @@ def create_app():
     return app
 
 app = create_app()
+    @app.route('/remove_user/<int:user_id>', methods=['POST'])
+    def remove_user(user_id):
+        if not session.get('admin'):
+            return redirect(url_for('login'))
+        user_para_remover = Cooperado.query.get(user_id)
+        if user_para_remover and not user_para_remover.admin:
+            db.session.delete(user_para_remover)
+            db.session.commit()
+            flash('Usuário removido com sucesso!', 'success')
+        return redirect(url_for('dashboard'))
+
+    # ADICIONE AQUI:
+    @app.route('/add_column_turno')
+    def add_column_turno():
+        try:
+            db.session.execute('ALTER TABLE escala ADD COLUMN IF NOT EXISTS "TURNO" VARCHAR(50);')
+            db.session.commit()
+            return 'Coluna "TURNO" adicionada com sucesso!'
+        except Exception as e:
+            return f'Erro ao adicionar coluna: {e}'
+
+    return app
 
 with app.app_context():
     try:
