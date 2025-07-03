@@ -1,17 +1,25 @@
 import pandas as pd
 import logging
+from openpyxl import load_workbook
 
 logging.basicConfig(level=logging.INFO)
 
+def get_fill_color(cell):
+    fill = cell.fill
+    if fill and fill.fgColor and fill.fgColor.type == "rgb":
+        return fill.fgColor.rgb  # Retorna cor ARGB, exemplo: 'FFFF0000' (vermelho)
+    return None
+
 def process_escala(file_path):
     try:
-        # Lê o arquivo Excel
+        # Lê o arquivo Excel (dados)
         df = pd.read_excel(file_path, header=0)
-        
-        # Imprime os nomes das colunas no log
-        logging.info(f"DEBUG: Colunas encontradas no arquivo Excel -> {df.columns.tolist()}")
+        logging.info(f"Colunas no arquivo Excel: {df.columns.tolist()}")
 
-        # Nomes de coluna que esperamos
+        # Abre o Excel com openpyxl para ler as cores
+        wb = load_workbook(file_path)
+        ws = wb.active  # pega a primeira aba
+
         colunas_possiveis = {
             'data': ['data', 'DATA', 'Data'],
             'horario': ['horario', 'HORÁRIO', 'horário', 'HORA', 'hora'],
@@ -27,32 +35,42 @@ def process_escala(file_path):
             return None
 
         colunas_reais = df.columns.tolist()
-        coluna_data_real = encontrar_nome_coluna(colunas_possiveis['data'], colunas_reais)
-        coluna_horario_real = encontrar_nome_coluna(colunas_possiveis['horario'], colunas_reais)
-        coluna_contrato_real = encontrar_nome_coluna(colunas_possiveis['contrato'], colunas_reais)
-        coluna_nome_real = encontrar_nome_coluna(colunas_possiveis['nome'], colunas_reais)
-        coluna_turno_real = encontrar_nome_coluna(colunas_possiveis['turno'], colunas_reais)
+        coluna_data = encontrar_nome_coluna(colunas_possiveis['data'], colunas_reais)
+        coluna_horario = encontrar_nome_coluna(colunas_possiveis['horario'], colunas_reais)
+        coluna_contrato = encontrar_nome_coluna(colunas_possiveis['contrato'], colunas_reais)
+        coluna_nome = encontrar_nome_coluna(colunas_possiveis['nome'], colunas_reais)
+        coluna_turno = encontrar_nome_coluna(colunas_possiveis['turno'], colunas_reais)
 
-        if not coluna_nome_real:
-            logging.error("ERRO CRÍTICO: A coluna de 'NOME' não foi encontrada no arquivo. Verifique o cabeçalho do Excel.")
+        if not coluna_nome:
+            logging.error("ERRO: Coluna 'nome' não encontrada.")
             return []
 
         escala = []
-        for index, row in df.iterrows():
-            nome = row.get(coluna_nome_real, '')
+        for idx, row in df.iterrows():
+            nome = row.get(coluna_nome, '')
             if pd.notna(nome) and str(nome).strip():
+                # No Excel, linha começa na 1, pandas com header=0 linha 0 é linha 2 do Excel
+                linha_excel = idx + 2
+
+                # Coluna do nome (índice começa em 0 no pandas, em 1 no openpyxl)
+                coluna_idx = df.columns.get_loc(coluna_nome) + 1
+
+                cell = ws.cell(row=linha_excel, column=coluna_idx)
+                cor = get_fill_color(cell)  # Pega a cor da célula
+
                 item = {
-                    'data': str(row.get(coluna_data_real, '')) if coluna_data_real else '',
-                    'horario': str(row.get(coluna_horario_real, '')) if coluna_horario_real else '',
-                    'contrato': str(row.get(coluna_contrato_real, '')) if coluna_contrato_real else '',
+                    'data': str(row.get(coluna_data, '')) if coluna_data else '',
+                    'horario': str(row.get(coluna_horario, '')) if coluna_horario else '',
+                    'contrato': str(row.get(coluna_contrato, '')) if coluna_contrato else '',
                     'nome': str(nome),
-                    'turno': str(row.get(coluna_turno_real, '')) if coluna_turno_real else ''
+                    'turno': str(row.get(coluna_turno, '')) if coluna_turno else '',
+                    'cor_nome': cor  # Aqui tem a cor da célula do nome, ex: 'FFFF0000'
                 }
                 escala.append(item)
-        
-        logging.info(f"PROCESSAMENTO CONCLUÍDO: {len(escala)} linhas válidas foram encontradas.")
+
+        logging.info(f"Processadas {len(escala)} linhas.")
         return escala
 
     except Exception as e:
-        logging.error(f"FALHA AO PROCESSAR O ARQUIVO EXCEL: {e}", exc_info=True)
+        logging.error(f"Erro ao processar Excel: {e}", exc_info=True)
         return []
