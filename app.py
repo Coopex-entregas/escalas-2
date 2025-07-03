@@ -4,15 +4,12 @@ import bcrypt
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from escala_processor import process_escala  # Garante que o processador seja importado
+from escala_processor import process_escala  # seu import
 
-# Configura o logging para vermos o que acontece no servidor do Render
 logging.basicConfig(level=logging.INFO)
 
-# --- INICIALIZAÇÃO DAS EXTENSÕES ---
 db = SQLAlchemy()
 
-# --- MODELOS DO BANCO DE DADOS ---
 class Cooperado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
@@ -27,15 +24,13 @@ class Escala(db.Model):
     horario = db.Column(db.String(50))
     contrato = db.Column(db.String(100))
     nome_cooperado = db.Column(db.String(100))
-    turno = db.Column('TURNO', db.String(50))  # Coluna no banco é "TURNO" maiúsculo
-    cor_nome = db.Column(db.String(50))  # Se precisar desta coluna também, adicione
+    turno = db.Column('TURNO', db.String(50))
+    cor_nome = db.Column(db.String(50))
 
 def create_app():
     app = Flask(__name__)
-
-    # --- CONFIGURAÇÃO DA APLICAÇÃO ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma_chave_secreta_local_muito_forte')
-    
+
     UPLOAD_FOLDER = 'uploads'
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
     if not os.path.exists(UPLOAD_FOLDER):
@@ -43,11 +38,12 @@ def create_app():
 
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
-        logging.error("ERRO CRÍTICO: A variável de ambiente DATABASE_URL não foi encontrada.")
+        logging.error("ERRO CRÍTICO: A variável de ambiente DATABASE_URL não foi encontrada. Verifique no Render.")
+        raise RuntimeError("DATABASE_URL não configurado.")
     else:
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
-    
+
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -74,7 +70,6 @@ def create_app():
     def dashboard():
         if 'email' not in session:
             return redirect(url_for('login'))
-        
         user = Cooperado.query.filter_by(email=session['email']).first()
         if not user:
             session.clear()
@@ -86,7 +81,7 @@ def create_app():
             cooperados_list = Cooperado.query.filter_by(admin=False).order_by(Cooperado.nome).all()
             return render_template('admin.html', cooperados=cooperados_list, escala=escala_atual)
         else:
-            escala_pessoal = [item for item in escala_atual if user.nome.lower() in item.nome_cooperado.lower()]
+            escala_pessoal = [item for item in escala_atual if user.nome.lower() in (item.nome_cooperado or "").lower()]
             return render_template('cooperado.html', nome=user.nome, escala=escala_pessoal)
 
     @app.route('/logout')
@@ -102,24 +97,21 @@ def create_app():
         if 'file' not in request.files or request.files['file'].filename == '':
             flash('Nenhum arquivo selecionado.', 'warning')
             return redirect(url_for('dashboard'))
-        
         file = request.files['file']
-        if file and '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in {'xlsx'}:
+        if file and '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() == 'xlsx':
             filename = secure_filename(file.filename)
             path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(path)
-            
+
             try:
                 escala_processada = process_escala(path)
-                
                 if not escala_processada:
-                    flash('O arquivo foi processado, mas nenhuma linha válida foi encontrada na escala.', 'warning')
+                    flash('O arquivo foi processado, mas nenhuma linha válida foi encontrada.', 'warning')
                     return redirect(url_for('dashboard'))
 
                 Escala.query.delete()
-                
                 for item in escala_processada:
-                    novo_item_escala = Escala(
+                    novo_item = Escala(
                         data=str(item.get('data', '')),
                         horario=str(item.get('horario', '')),
                         contrato=str(item.get('contrato', '')),
@@ -127,37 +119,29 @@ def create_app():
                         turno=str(item.get('turno', '')),
                         cor_nome=str(item.get('cor_nome', ''))
                     )
-                    db.session.add(novo_item_escala)
-                
+                    db.session.add(novo_item)
                 db.session.commit()
-                flash('Escala processada e salva no banco de dados com sucesso!', 'success')
-
+                flash('Escala processada e salva com sucesso!', 'success')
             except Exception as e:
                 db.session.rollback()
                 flash(f'Erro ao processar o arquivo: {e}', 'danger')
                 logging.error(f"Erro na rota /upload: {e}", exc_info=True)
-                
         return redirect(url_for('dashboard'))
 
     @app.route('/add_user', methods=['POST'])
     def add_user():
         if not session.get('admin'):
             return redirect(url_for('login'))
-        
         nome = request.form.get('nome')
         email = request.form.get('email')
         senha = request.form.get('senha')
-
         if Cooperado.query.filter_by(email=email).first():
             flash('Este e-mail já está cadastrado.', 'warning')
             return redirect(url_for('dashboard'))
-
         senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        
         novo_cooperado = Cooperado(nome=nome, email=email, senha_hash=senha_hash, admin=False)
         db.session.add(novo_cooperado)
         db.session.commit()
-        
         flash(f'Usuário {nome} adicionado com sucesso!', 'success')
         return redirect(url_for('dashboard'))
 
@@ -165,16 +149,13 @@ def create_app():
     def remove_user(user_id):
         if not session.get('admin'):
             return redirect(url_for('login'))
-        
         user_para_remover = Cooperado.query.get(user_id)
         if user_para_remover and not user_para_remover.admin:
             db.session.delete(user_para_remover)
             db.session.commit()
             flash('Usuário removido com sucesso!', 'success')
-            
         return redirect(url_for('dashboard'))
 
-    # Rota para criar a coluna "TURNO" caso não exista (útil no Render)
     @app.route('/add_column_turno')
     def add_column_turno():
         try:
@@ -191,7 +172,7 @@ app = create_app()
 with app.app_context():
     try:
         db.create_all()
-        logging.info("Tabelas do banco de dados verificadas/criadas.")
+        logging.info("Tabelas do banco verificadas/criadas.")
         if not Cooperado.query.filter_by(email='coopexentregas.rn@gmail.com').first():
             logging.info("Usuário admin não encontrado, criando...")
             admin_senha_hash = bcrypt.hashpw('05062721'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
