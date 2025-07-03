@@ -1,7 +1,7 @@
-Flask>=3.1.1,<4.0
-pandas>=2.3.0
-openpyxl>=3.1.5
-gunicorn>=23.0.0
-Flask-SQLAlchemy>=3.1.1,<4.0
-psycopg2-binary>=2.9.10
-bcrypt>=4.3.0
+Flask
+pandas
+openpyxl
+gunicorn
+Flask-SQLAlchemy
+psycopg2-binary
+bcrypt
