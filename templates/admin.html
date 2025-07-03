@@ -5,38 +5,40 @@
     <title>Dashboard do Administrador</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 2em; background-color: #f8f9fa; color: #212529; }
-        .container { max-width: 900px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .card { border: 1px solid #dee2e6; padding: 1.5em; margin-bottom: 1.5em; border-radius: 8px; background: #fff; }
-        h1, h2, h3 { color: #343a40; }
-        h1 { text-align: center; margin-bottom: 1em; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        .container { max-width: 1000px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .card { border: 1px solid #dee2e6; padding: 1.5em; margin-bottom: 1.5em; border-radius: 8px; }
+        h1, h2 { text-align: center; margin-bottom: 1em; }
         table { width: 100%; border-collapse: collapse; margin-top: 1em; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e9ecef; }
         th { background-color: #f8f9fa; }
-        .flash { padding: 1em; margin-bottom: 1em; border-radius: 5px; text-align: center; font-weight: 500; }
+        .flash { padding: 1em; margin-bottom: 1em; border-radius: 5px; text-align: center; }
         .flash.success { background-color: #d1e7dd; color: #0f5132; }
         .flash.danger { background-color: #f8d7da; color: #842029; }
         .flash.warning { background-color: #fff3cd; color: #664d03; }
-        .flash.info { background-color: #cff4fc; color: #055160; }
-        input[type="text"], input[type="email"], input[type="password"], input[type="file"], input[type="submit"] {
-            width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #ced4da; font-size: 16px;
-        }
-        input[type="submit"] { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-        input[type="submit"]:hover { background-color: #0056b3; }
+        input[type="text"], input[type="email"], input[type="password"], input[type="file"], input[type="submit"], textarea, select { width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #ced4da; }
+        input[type="submit"] { background-color: #007bff; color: white; border: none; cursor: pointer; }
         .logout-link { text-align: right; margin-bottom: 20px; }
-        .remove-btn { background-color: #dc3545 !important; width: auto; padding: 6px 12px; font-size: 14px; }
-        .remove-btn:hover { background-color: #c82333 !important; }
+        .remove-btn { background-color: #dc3545 !important; color: white; }
+        .message-item { background-color: #f2f2f2; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .message-item .content { flex-grow: 1; }
+        .message-item .meta { font-size: 0.8em; color: #6c757d; }
+        .message-item .delete-btn { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        /* Estilos para Recados */
+        .recado-status-sim { background-color: #d4edda; color: #155724; } /* Verde */
+        .recado-status-nao { background-color: #f8d7da; color: #721c24; } /* Vermelho */
+        .recado-item { padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .recado-item .content { flex-grow: 1; }
+        .recado-item .meta { font-size: 0.8em; color: #6c757d; }
+        .recado-item .actions { display: flex; gap: 5px; }
+        .recado-item .actions button, .recado-item .actions select { padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
+        .recado-item .actions .delete-btn { background-color: #dc3545; color: white; border: none; }
+        .recado-item .actions .update-btn { background-color: #007bff; color: white; border: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logout-link">
-            <a href="{{ url_for('logout') }}">Sair</a>
-        </div>
+        <div class="logout-link"><a href="{{ url_for('logout') }}">Sair</a></div>
         <h1>Painel do Administrador</h1>
-
-        <!-- Mensagens Flash -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -45,6 +47,7 @@
             {% endif %}
         {% endwith %}
 
+        <!-- Seção de Upload de Escala -->
         <div class="card">
             <h2>Upload de Nova Escala</h2>
             <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
@@ -53,15 +56,106 @@
             </form>
         </div>
 
+        <!-- Seção de Envio de Mensagens -->
+        <div class="card">
+            <h2>Enviar Mensagem</h2>
+            <form action="{{ url_for('send_message') }}" method="post">
+                <textarea name="conteudo" rows="4" placeholder="Digite sua mensagem aqui..." required></textarea>
+                <label for="destinatario">Destinatário:</label>
+                <select name="destinatario" id="destinatario">
+                    <option value="all">Todos os Cooperados</option>
+                    {% for cooperado in cooperados %}
+                        <option value="{{ cooperado.id }}">{{ cooperado.nome }} ({{ cooperado.email }})</option>
+                    {% endfor %}
+                </select>
+                <input type="submit" value="Enviar Mensagem">
+            </form>
+        </div>
+
+        <!-- Seção de Mensagens Enviadas -->
+        <div class="card">
+            <h2>Mensagens Enviadas</h2>
+            {% if mensagens %}
+                {% for mensagem in mensagens %}
+                    <div class="message-item">
+                        <div class="content">
+                            <strong>{{ "Para: Todos" if mensagem.cooperado_id == None else "Para: " ~ (mensagem.cooperado.nome if mensagem.cooperado else "Usuário Removido") }}</strong><br>
+                            {{ mensagem.conteudo }}
+                            <div class="meta">{{ mensagem.data_envio.strftime('%d/%m/%Y %H:%M') }}</div>
+                        </div>
+                        <form action="{{ url_for('delete_message', message_id=mensagem.id) }}" method="post" onsubmit="return confirm('Tem certeza que deseja excluir esta mensagem?');">
+                            <button type="submit" class="delete-btn">Excluir</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Nenhuma mensagem enviada ainda.</p>
+            {% endif %}
+        </div>
+
+        <!-- NOVA SEÇÃO: Gerenciar Recados/Documentos -->
+        <div class="card">
+            <h2>Gerenciar Recados/Documentos</h2>
+            <h3>Adicionar Novo Recado</h3>
+            <form action="{{ url_for('add_recado') }}" method="post">
+                <input type="text" name="titulo" placeholder="Título do Recado (Ex: Documento da Moto)" required>
+                <label for="destinatario_recado">Destinatário:</label>
+                <select name="destinatario_recado" id="destinatario_recado">
+                    <option value="all">Todos os Cooperados</option>
+                    {% for cooperado in cooperados %}
+                        <option value="{{ cooperado.id }}">{{ cooperado.nome }} ({{ cooperado.email }})</option>
+                    {% endfor %}
+                </select>
+                <input type="submit" value="Adicionar Recado">
+            </form>
+
+            <h3>Recados Existentes</h3>
+            {% if recados %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Destinatário</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for recado in recados %}
+                        <tr class="recado-item recado-status-{{ recado.status }}">
+                            <td>{{ recado.titulo }}</td>
+                            <td>{{ "Todos" if recado.cooperado_id == None else (recado.cooperado.nome if recado.cooperado else "Usuário Removido") }}</td>
+                            <td>{{ "Aprovado (Sim)" if recado.status == 'sim' else "Não Aprovado (Não)" }}</td>
+                            <td class="actions">
+                                <form action="{{ url_for('update_recado_status', recado_id=recado.id) }}" method="post" style="display:inline;">
+                                    <select name="status" onchange="this.form.submit()">
+                                        <option value="nao" {% if recado.status == 'nao' %}selected{% endif %}>Não</option>
+                                        <option value="sim" {% if recado.status == 'sim' %}selected{% endif %}>Sim</option>
+                                    </select>
+                                </form>
+                                <form action="{{ url_for('delete_recado', recado_id=recado.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este recado?');">
+                                    <button type="submit" class="delete-btn">Excluir</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Nenhum recado cadastrado ainda.</p>
+            {% endif %}
+        </div>
+
+        <!-- Seção de Escala Atual Carregada -->
         <div class="card">
             <h2>Escala Atual Carregada</h2>
-            <!-- CORREÇÃO APLICADA AQUI -->
-            {% if escala and escala|length > 0 %}
+            {% if escala %}
                 <table>
                     <thead>
                         <tr>
                             <th>Data</th>
                             <th>Horário</th>
+                            <th>Turno</th>
                             <th>Contrato</th>
                             <th>Nome do Cooperado</th>
                         </tr>
@@ -71,6 +165,7 @@
                         <tr>
                             <td>{{ item.data }}</td>
                             <td>{{ item.horario }}</td>
+                            <td>{{ item.turno }}</td>
                             <td>{{ item.contrato }}</td>
                             <td>{{ item.nome_cooperado }}</td>
                         </tr>
@@ -78,47 +173,47 @@
                     </tbody>
                 </table>
             {% else %}
-                <p>Nenhuma escala foi carregada ainda. Por favor, faça o upload de um arquivo.</p>
+                <p>Nenhuma escala foi carregada ainda.</p>
             {% endif %}
         </div>
 
+        <!-- Seção de Gerenciamento de Usuários -->
         <div class="card">
-            <h2>Gerenciar Cooperados</h2>
-            <h3>Adicionar Novo Cooperado</h3>
+            <h2>Gerenciar Usuários</h2>
+            <h3>Adicionar Novo Usuário</h3>
             <form action="{{ url_for('add_user') }}" method="post">
                 <input type="text" name="nome" placeholder="Nome Completo" required>
                 <input type="email" name="email" placeholder="E-mail" required>
                 <input type="password" name="senha" placeholder="Senha" required>
-                <input type="submit" value="Adicionar Cooperado">
+                <input type="submit" value="Adicionar Usuário">
             </form>
-
-            <h3 style="margin-top: 2em;">Lista de Cooperados</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>E-mail</th>
-                        <th>Ação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in cooperados %}
-                    <tr>
-                        <td>{{ user.nome }}</td>
-                        <td>{{ user.email }}</td>
-                        <td>
-                            <form action="{{ url_for('remove_user', user_id=user.id) }}" method="post" onsubmit="return confirm('Tem certeza que deseja remover este usuário?');">
-                                <input type="submit" value="Remover" class="remove-btn">
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="3" style="text-align: center;">Nenhum cooperado cadastrado.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <h3>Usuários Cadastrados</h3>
+            {% if cooperados %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>E-mail</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cooperado in cooperados %}
+                        <tr>
+                            <td>{{ cooperado.nome }}</td>
+                            <td>{{ cooperado.email }}</td>
+                            <td>
+                                <form action="{{ url_for('remove_user', user_id=cooperado.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja remover este usuário?');">
+                                    <button type="submit" class="remove-btn">Remover</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Nenhum cooperado cadastrado ainda.</p>
+            {% endif %}
         </div>
     </div>
 </body>
