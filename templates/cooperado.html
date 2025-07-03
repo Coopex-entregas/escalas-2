@@ -1,25 +1,20 @@
 <!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Dashboard do Cooperado</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 2em; background-color: #f8f9fa; color: #212529; }
-        .container { max-width: 900px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .card { border: 1px solid #dee2e6; padding: 1.5em; margin-bottom: 1.5em; border-radius: 8px; background: #fff; }
-        h1, h2 { text-align: center; margin-bottom: 1em; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e9ecef; }
-        th { background-color: #f8f9fa; }
-        .flash { padding: 1em; margin-bottom: 1em; border-radius: 5px; text-align: center; }
-        .flash.success { background-color: #d1e7dd; color: #0f5132; }
-        .flash.danger { background-color: #f8d7da; color: #842029; }
-        .flash.warning { background-color: #fff3cd; color: #664d03; }
-        .logout-link { text-align: right; margin-bottom: 20px; }
-        .message-item { background-color: #e9f7ef; padding: 10px; border-radius: 5px; margin-bottom: 10px; border-left: 5px solid #28a745; }
-        .message-item .meta { font-size: 0.8em; color: #6c757d; text-align: right; }
-        /* Estilos para Recados */
-        .recado-item { padding: 10px; border-radius: 5px; margin-bottom: 10px; }
-        .recado-status-sim { background-color: #d4edda; color: #155724; border-left: 5px solid #28a74
+<html>
+<head><title>Escala</title></head>
+<body>
+  <h2>Olá {{ nome }}</h2>
+  <h3>Sua Escala:</h3>
+  <table border="1">
+    <tr><th>Data</th><th>Horário</th><th>Contrato</th><th>Nome</th></tr>
+    {% for item in escala %}
+      <tr>
+        <td>{{ item.data }}</td>
+        <td>{{ item.horario }}</td>
+        <td>{{ item.contrato }}</td>
+        <td>{{ item.nome }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+  <br><a href="/logout">Sair</a>
+</body>
+</html>
