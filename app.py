@@ -4,15 +4,15 @@ import bcrypt
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from escala_processor import process_escala  # Importa a função atualizada
+from escala_processor import process_escala  # Garante que o processador seja importado
 
-# Configura o logging para ver o que acontece no servidor
+# Configura o logging para vermos o que acontece no servidor do Render
 logging.basicConfig(level=logging.INFO)
 
-# Inicializa a extensão SQLAlchemy fora da função para ficar acessível
+# --- INICIALIZAÇÃO DAS EXTENSÕES ---
 db = SQLAlchemy()
 
-# Modelos do banco de dados
+# --- MODELOS DO BANCO DE DADOS ---
 class Cooperado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
@@ -21,18 +21,21 @@ class Cooperado(db.Model):
     admin = db.Column(db.Boolean, default=False, nullable=False)
 
 class Escala(db.Model):
+    __tablename__ = 'escala'
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.String(50))
     horario = db.Column(db.String(50))
     contrato = db.Column(db.String(100))
     nome_cooperado = db.Column(db.String(100))
-    turno = db.Column(db.String(50))          # Coluna turno adicionada
-    cor_nome = db.Column(db.String(20))       # Cor da célula do nome/cooperado (ex: 'FFFF0000')
+    turno = db.Column('TURNO', db.String(50))  # Coluna no banco é "TURNO" maiúsculo
+    cor_nome = db.Column(db.String(50))  # Se precisar desta coluna também, adicione
 
 def create_app():
     app = Flask(__name__)
 
+    # --- CONFIGURAÇÃO DA APLICAÇÃO ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma_chave_secreta_local_muito_forte')
+    
     UPLOAD_FOLDER = 'uploads'
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
     if not os.path.exists(UPLOAD_FOLDER):
@@ -44,6 +47,7 @@ def create_app():
     else:
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -119,7 +123,7 @@ def create_app():
                         data=str(item.get('data', '')),
                         horario=str(item.get('horario', '')),
                         contrato=str(item.get('contrato', '')),
-                        nome_cooperado=str(item.get('nome', '')),
+                        nome_cooperado=str(item.get('cooperado', '')),
                         turno=str(item.get('turno', '')),
                         cor_nome=str(item.get('cor_nome', ''))
                     )
@@ -170,9 +174,18 @@ def create_app():
             
         return redirect(url_for('dashboard'))
 
+    # Rota para criar a coluna "TURNO" caso não exista (útil no Render)
+    @app.route('/add_column_turno')
+    def add_column_turno():
+        try:
+            db.session.execute('ALTER TABLE escala ADD COLUMN IF NOT EXISTS "TURNO" VARCHAR(50);')
+            db.session.commit()
+            return 'Coluna "TURNO" adicionada com sucesso!'
+        except Exception as e:
+            return f'Erro ao adicionar coluna: {e}'
+
     return app
 
-# Inicializa banco e cria admin se não existir
 app = create_app()
 
 with app.app_context():
