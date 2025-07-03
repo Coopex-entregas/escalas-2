@@ -4,17 +4,15 @@ import bcrypt
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from escala_processor import process_escala # Garante que o processador seja importado
+from escala_processor import process_escala  # Importa a função atualizada
 
-# Configura o logging para vermos o que acontece no servidor do Render
+# Configura o logging para ver o que acontece no servidor
 logging.basicConfig(level=logging.INFO)
 
-# --- INICIALIZAÇÃO DAS EXTENSÕES ---
-# Inicializamos as extensões fora da função de criação para que fiquem acessíveis
+# Inicializa a extensão SQLAlchemy fora da função para ficar acessível
 db = SQLAlchemy()
 
-# --- MODELOS DO BANCO DE DADOS ---
-# Definimos os modelos aqui para que sejam conhecidos pela aplicação
+# Modelos do banco de dados
 class Cooperado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
@@ -28,40 +26,29 @@ class Escala(db.Model):
     horario = db.Column(db.String(50))
     contrato = db.Column(db.String(100))
     nome_cooperado = db.Column(db.String(100))
+    turno = db.Column(db.String(50))          # Coluna turno adicionada
+    cor_nome = db.Column(db.String(20))       # Cor da célula do nome/cooperado (ex: 'FFFF0000')
 
-# --- FUNÇÃO DE CRIAÇÃO DA APLICAÇÃO (APPLICATION FACTORY) ---
-# Esta é a forma mais robusta de criar uma aplicação Flask
 def create_app():
     app = Flask(__name__)
 
-    # --- CONFIGURAÇÃO DA APLICAÇÃO ---
-    # Chave secreta para a sessão
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma_chave_secreta_local_muito_forte')
-    
-    # Pasta de uploads
     UPLOAD_FOLDER = 'uploads'
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
 
-    # --- CONFIGURAÇÃO DO BANCO DE DADOS ---
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
         logging.error("ERRO CRÍTICO: A variável de ambiente DATABASE_URL não foi encontrada.")
-        # Em um caso real, poderíamos levantar uma exceção aqui
     else:
-        # Corrige o prefixo da URL para o SQLAlchemy
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
-    
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Conecta a extensão do banco de dados com a aplicação
     db.init_app(app)
 
-    # --- ROTAS DA APLICAÇÃO ---
-    # As rotas são definidas dentro da função de criação
     @app.route('/', methods=['GET', 'POST'])
     def login():
         if 'email' in session:
@@ -132,7 +119,9 @@ def create_app():
                         data=str(item.get('data', '')),
                         horario=str(item.get('horario', '')),
                         contrato=str(item.get('contrato', '')),
-                        nome_cooperado=str(item.get('nome', ''))
+                        nome_cooperado=str(item.get('nome', '')),
+                        turno=str(item.get('turno', '')),
+                        cor_nome=str(item.get('cor_nome', ''))
                     )
                     db.session.add(novo_item_escala)
                 
@@ -183,8 +172,7 @@ def create_app():
 
     return app
 
-# --- CRIAÇÃO E INICIALIZAÇÃO DO BANCO DE DADOS ---
-# Esta parte é executada quando o Gunicorn importa o arquivo
+# Inicializa banco e cria admin se não existir
 app = create_app()
 
 with app.app_context():
@@ -201,7 +189,6 @@ with app.app_context():
     except Exception as e:
         logging.error(f"Erro ao inicializar o banco de dados: {e}", exc_info=True)
 
-# Esta parte só é usada se você rodar o arquivo diretamente com "python app.py"
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
